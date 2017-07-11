@@ -1,6 +1,7 @@
 package com.example;
 
 import java.io.BufferedReader;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.ServerSocket;
@@ -16,9 +17,7 @@ import java.util.Map;
 
 public class MediaServer {
     private ServerThread mServerThread;
-    private ClientThread mClientThread;
     private ServerSocket mServer;
-    private ServerSocket mClient;
 
     private Map<String,Socket> mServerMap;
     private List<String> mServerList;
@@ -33,6 +32,7 @@ public class MediaServer {
 
         mServerThread = new ServerThread();
         mServerThread.start();
+
     }
 
 
@@ -46,14 +46,15 @@ public class MediaServer {
         public void run() {
             try {
                 System.out.print("Server is waiting ...\n");
+                mServer = new ServerSocket(8905);
                 while(true) {
-                    mServer = new ServerSocket(8905);
                     Socket socket = mServer.accept();
-                    System.out.print("server address = " + socket.getInetAddress().toString().substring(1) + "\n");
-                    mServerMap.put(socket.getInetAddress().toString().substring(1), socket);
-                    mServerList.add(socket.getInetAddress().toString().substring(1));
+                    String ip = socket.getInetAddress().toString().substring(1);
+                    System.out.print("client address = " + ip + "\n");
+                    mServerMap.put(ip, socket);
+                    //mServerList.add(socket.getInetAddress().toString().substring(1));
 
-                    ServerSocketThread st = new ServerSocketThread(socket);
+                    ServerSocketThread st = new ServerSocketThread(ip,socket);
                     st.start();
                 }
             } catch (Exception e) {
@@ -70,63 +71,68 @@ public class MediaServer {
 
         private class ServerSocketThread extends Thread {
             private Socket mSocket;
-            public ServerSocketThread(Socket socket) {
+            private String mIp;
+            private boolean mIsByteStream = false;
+            private String mAimIp;
+
+            public ServerSocketThread(String ip,Socket socket) {
                 mSocket = socket;
-            }
-
-            @Override
-            public void run() {
-                super.run();
-            }
-        }
-    }
-
-    private class ClientThread extends Thread {
-        public ClientThread() {
-            super();
-        }
-
-        @Override
-        public void run() {
-            try {
-                System.out.print("ClientServer is waiting ...\n");
-                mClient = new ServerSocket(8906);
-                while(true) {
-                    Socket socket = mClient.accept();
-                    System.out.print("client address = " + socket.getInetAddress().toString().substring(1) + "\n");
-                    mClientMap.put(socket.getInetAddress().toString().substring(1), socket);
-                    mClientList.add(socket.getInetAddress().toString().substring(1));
-                    ClientSocketThread st = new ClientSocketThread(socket);
-                    st.start();
-                }
-            } catch (Exception e) {
-                //exception
-                e.printStackTrace();
-            }
-        }
-
-
-        private class ClientSocketThread extends Thread {
-            private Socket mSocket;
-
-            public ClientSocketThread(Socket socket) {
-                mSocket = socket;
+                mIp = ip;
             }
 
             @Override
             public void run() {
                 try {
                     BufferedReader br = new BufferedReader(new InputStreamReader(mSocket.getInputStream()));
-                    OutputStream out = mSocket.getOutputStream();
+                    InputStream input = mSocket.getInputStream();
                     while(mSocket.isConnected()) {
-                        String str = br.readLine();
-                        if("serverlist".equals(str)) {
-                            String outstr = mServerList.get(0);
-                            for(int i=1;i<mServerList.size();i++) {
-                                outstr += ":";
-                                outstr += mServerList.get(i);
+                        if(!mIsByteStream) {
+                            String str = br.readLine();
+                            System.out.println("str = " + str);
+                            if (str.startsWith("reg")) {
+                                if (str.split("-")[1].equals("server")) {
+                                    mServerList.add(mIp);
+                                }
+                            } else if (str.startsWith("dat")) {
+                                String ip = str.split("-")[1];
+                                String data = str.split("-")[2] + "\n";
+                                Socket socket = mServerMap.get(ip);
+                                OutputStream out = socket.getOutputStream();
+                                out.write(data.getBytes());
+                                out.flush();
+                            } else if (str.startsWith("lst")) {
+                                String data = "iplst:" + mServerList.get(0);
+                                for (int i = 1; i < mServerList.size(); i++) {
+                                    data += ":";
+                                    data += mServerList.get(i);
+                                }
+                                data += "\n";
+                                OutputStream out = mSocket.getOutputStream();
+                                System.out.println("lst = " + data);
+                                out.write(data.getBytes());
+                                out.flush();
+                            } else if (str.startsWith("format")){
+                                String format = str.split("-")[1];
+                                String ip = str.split("-")[2];
+                                if("byte".equals(format)) {
+                                    mIsByteStream = true;
+                                    mAimIp = ip;
+                                }
+                                String data = "format-byte\n";
+                                Socket socket = mServerMap.get(ip);
+                                OutputStream out = socket.getOutputStream();
+                                out.write(data.getBytes());
+                                out.flush();
                             }
-                            out.write(outstr.getBytes());
+                        } else {
+                            //tansform byte data
+                            int len;
+                            byte[] data = new byte[1024];
+                            len = input.read(data,0,data.length);
+                            System.out.println("len = " + len);
+                            Socket socket = mServerMap.get(mAimIp);
+                            OutputStream out = socket.getOutputStream();
+                            out.write(data,0,len);
                             out.flush();
                         }
                     }
