@@ -3,6 +3,7 @@ package com.example.zhouyong0701.servicethreadtest;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.os.Build;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -17,7 +18,7 @@ import java.net.Socket;
 public class Client2Activity extends AppCompatActivity {
     private String mIPAddress;
     private MyThread thread;
-    private String mAimIp;
+    private String mAimId;
     private boolean mAimIpAvaliable = false;
 
     @Override
@@ -45,18 +46,20 @@ public class Client2Activity extends AppCompatActivity {
                 BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(in));
                 OutputStream outputStream = socket.getOutputStream();
                 int i = 1;
-                outputStream.write("reg-server\n".getBytes());
+                Build build = new Build();
+                String id = build.MODEL + "&&" + build.TIME;
+                outputStream.write(("reg-server-"+id+"\n").getBytes());
 
                 while (socket.isConnected()) {
                     if(!mAimIpAvaliable) {
                         String str = bufferedReader.readLine();
                         Log.d("zhouyongxyz","str = " +str);
                         if(str.startsWith("aim")) {
-                            mAimIp = str.split(":")[1];
+                            mAimId = str.split(":")[1];
                             mAimIpAvaliable = true;
                         }
                     } else {
-                        String format = "format-byte-"+mAimIp+"\n";
+                        String format = "format-byte-"+mAimId+"\n";
                         outputStream.write(format.getBytes());
                         Bitmap bitmap = BitmapFactory.decodeResource(getResources(), R.drawable.test2);
                         ByteArrayOutputStream bout = new ByteArrayOutputStream();
