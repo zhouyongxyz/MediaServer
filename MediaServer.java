@@ -51,7 +51,7 @@ public class MediaServer {
                     Socket socket = mServer.accept();
                     String ip = socket.getInetAddress().toString().substring(1);
                     System.out.print("client address = " + ip + "\n");
-                    mServerMap.put(ip, socket);
+                    //mServerMap.put(ip, socket); do not use ip map,use client id-info instead
                     //mServerList.add(socket.getInetAddress().toString().substring(1));
 
                     ServerSocketThread st = new ServerSocketThread(ip,socket);
@@ -72,8 +72,9 @@ public class MediaServer {
         private class ServerSocketThread extends Thread {
             private Socket mSocket;
             private String mIp;
+            private String mClientId;
             private boolean mIsByteStream = false;
-            private String mAimIp;
+            private String mAimId;
 
             public ServerSocketThread(String ip,Socket socket) {
                 mSocket = socket;
@@ -91,7 +92,16 @@ public class MediaServer {
                             System.out.println("str = " + str);
                             if (str.startsWith("reg")) {
                                 if (str.split("-")[1].equals("server")) {
-                                    mServerList.add(mIp);
+                                    String id = str.split("-")[2];
+                                    mClientId = id;
+                                    mServerMap.put(id,mSocket);
+                                    mServerList.add(id);
+                                    System.out.println("server id = " + id);
+                                } else if (str.split("-")[1].equals("client")){
+                                    String id = str.split("-")[2];
+                                    mClientId = id;
+                                    mServerMap.put(id,mSocket);
+                                    System.out.println("client id = " + id);
                                 }
                             } else if (str.startsWith("dat")) {
                                 String ip = str.split("-")[1];
@@ -113,13 +123,13 @@ public class MediaServer {
                                 out.flush();
                             } else if (str.startsWith("format")){
                                 String format = str.split("-")[1];
-                                String ip = str.split("-")[2];
+                                String id = str.split("-")[2];
                                 if("byte".equals(format)) {
                                     mIsByteStream = true;
-                                    mAimIp = ip;
+                                    mAimId = id;
                                 }
                                 String data = "format-byte\n";
-                                Socket socket = mServerMap.get(ip);
+                                Socket socket = mServerMap.get(id);
                                 OutputStream out = socket.getOutputStream();
                                 out.write(data.getBytes());
                                 out.flush();
@@ -130,7 +140,7 @@ public class MediaServer {
                             byte[] data = new byte[1024];
                             len = input.read(data,0,data.length);
                             System.out.println("len = " + len);
-                            Socket socket = mServerMap.get(mAimIp);
+                            Socket socket = mServerMap.get(mAimId);
                             OutputStream out = socket.getOutputStream();
                             out.write(data,0,len);
                             out.flush();
