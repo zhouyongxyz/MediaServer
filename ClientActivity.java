@@ -6,6 +6,7 @@ import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.os.Build;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -25,8 +26,8 @@ public class ClientActivity extends AppCompatActivity {
     private String mIPAddress;
     MyThread thread;
     private List<String> mList;
-    private String mAimIp;
-    private String mLocalIp;
+    private String mAimId;
+    private String mLocalId;
     private boolean mAimIpAvaliable = false;
     private boolean mIsByteStream = false;
 
@@ -67,7 +68,9 @@ public class ClientActivity extends AppCompatActivity {
                 InputStream inputStream = socket.getInputStream();
                 OutputStream outputStream = socket.getOutputStream();
                 int i = 1;
-                //outputStream.write("reg-server\n".getBytes());
+                Build build = new Build();
+                mLocalId = build.MODEL + "&&" + build.TIME;
+                outputStream.write(("reg-client-"+mLocalId+"\n").getBytes());
                 outputStream.write("lst-server\n".getBytes());
 
                 while (true) {
@@ -75,12 +78,12 @@ public class ClientActivity extends AppCompatActivity {
                         String str = bufferedReader.readLine();
                         Log.d("zhouyongxyz", "str = " + str);
                         if (str.startsWith("iplst")) {
-                            String[] ips = str.split(":");
-                            mAimIp = ips[1];
+                            String[] ids = str.split(":");
+                            mAimId = ids[1];
                             mAimIpAvaliable = true;
-                            mLocalIp = socket.getLocalAddress().toString().substring(1);
-                            Log.d("zhouyongxyz", "localaddress = " + mLocalIp);
-                            String data = "dat-" + mAimIp + "-aim:" + mLocalIp + "\n";
+                            //mLocalIp = ips[1];//socket.getLocalAddress().toString().substring(1);
+                            Log.d("zhouyongxyz", "mLocalId = " + mLocalId);
+                            String data = "dat-" + mAimId + "-aim:" + mLocalId + "\n";
                             outputStream.write(data.getBytes());
                         } else if (str.startsWith("format")) {
                             String format = str.split("-")[1];
