@@ -95,7 +95,9 @@ public class MediaServer {
                                     String id = str.split("-")[2];
                                     mClientId = id;
                                     mServerMap.put(id,mSocket);
-                                    mServerList.add(id);
+                                    if(!mServerList.contains(id)) {
+                                        mServerList.add(id);
+                                    }
                                     System.out.println("server id = " + id);
                                 } else if (str.split("-")[1].equals("client")){
                                     String id = str.split("-")[2];
